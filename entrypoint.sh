@@ -32,6 +32,10 @@ if [ "$ACTUAL_TARGET" != "$EXPECTED_TARGET" ]; then
 fi
 echo "[QMD-MCP] Verified: $QMD_CACHE -> $QMD_DATA"
 
+# Dashboard startup
+echo "[QMD-MCP] Starting dashboard on port 3003..."
+PORT=3003 HOSTNAME=0.0.0.0 node /app/dashboard/server.js &
+
 echo "[QMD-MCP] Starting QMD MCP server on port 3001 via supergateway..."
 exec supergateway \
   --stdio "qmd mcp" \

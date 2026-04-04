@@ -1,6 +1,15 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:22-bookworm-slim
+# Stage 1: Build dashboard
+FROM node:22-bookworm-slim AS dashboard-builder
+WORKDIR /dashboard
+COPY dashboard/package.json dashboard/package-lock.json* ./
+RUN npm ci
+COPY dashboard/ .
+RUN npm run build
+
+# Stage 2: Build QMD from source
+FROM node:22-bookworm-slim AS qmd-builder
 
 ARG PNPM_VERSION=10.7.0
 ARG QMD_COMMIT=1fb2e2819e4024045203b4ea550ec793683baf2b
@@ -15,12 +24,10 @@ RUN \
   apt-get install -y --no-install-recommends \
     curl git python3 build-essential ca-certificates
 
-# Install pnpm
 ENV PNPM_HOME="/usr/local/share/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
 
-# Build QMD from source (pinned commit for reproducibility)
 RUN git clone https://github.com/tobi/qmd /opt/qmd \
     && cd /opt/qmd \
     && git checkout ${QMD_COMMIT} \
@@ -31,18 +38,42 @@ RUN git clone https://github.com/tobi/qmd /opt/qmd \
     && cd /opt/qmd \
     && pnpm run build \
     && touch package-lock.json \
-    && pnpm link --global
+    && pnpm link --global \
+    && ln -sf /usr/local/share/pnpm/qmd /usr/local/bin/qmd
 
-# supergateway (stdio → streamable-http bridge, pinned version)
 RUN --mount=type=cache,target=/root/.npm \
     npm install -g supergateway@${SUPERGATEWAY_VERSION}
 
-# Fix ownership so node user can read QMD files at runtime
-RUN chown -R node:node /opt/qmd
+# Stage 3: Runtime
+FROM node:22-bookworm-slim
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+RUN \
+  --mount=type=cache,target=/var/lib/apt,sharing=locked \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  apt-get update && \
+  apt-get install -y --no-install-recommends ca-certificates
+
+COPY --from=qmd-builder /usr/local/share/pnpm /usr/local/share/pnpm
+COPY --from=qmd-builder /usr/local/bin/qmd /usr/local/bin/qmd
+COPY --from=qmd-builder /opt/qmd /opt/qmd
+COPY --from=qmd-builder /usr/local/lib/node_modules/supergateway /usr/local/lib/node_modules/supergateway
+COPY --from=qmd-builder /usr/local/bin/supergateway /usr/local/bin/supergateway
+
+ENV PNPM_HOME="/usr/local/share/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+
+# Dashboard
+COPY --from=dashboard-builder /dashboard/.next/standalone /app/dashboard
+COPY --from=dashboard-builder /dashboard/.next/static /app/dashboard/.next/static
+COPY --from=dashboard-builder /dashboard/public /app/dashboard/public
+
+RUN chown -R node:node /opt/qmd /app
 
 USER node
 WORKDIR /opt/qmd
-EXPOSE 3001
+EXPOSE 3001 3003
 
 COPY --chown=node:node entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
