@@ -27,8 +27,8 @@ describe('DashboardPage', () => {
   it('renders status cards', () => {
     render(<DashboardPage />)
     expect(screen.getByText('Database')).toBeInTheDocument()
-    expect(screen.getByText('Indexed Files')).toBeInTheDocument()
-    expect(screen.getByText('Disk Usage')).toBeInTheDocument()
+    expect(screen.getByText('Files')).toBeInTheDocument()
+    expect(screen.getByText('Disk')).toBeInTheDocument()
   })
 
   it('renders the search section', () => {
