@@ -13,7 +13,9 @@ export async function GET(request: Request) {
 
   try {
     const escaped = query.replace(/"/g, '\\"')
-    const result = execSync(`qmd search "${escaped}" --json 2>/dev/null || echo "[]"`, { timeout: 15000 })
+    const result = execSync(`qmd search "${escaped}" --json 2>/dev/null || echo "[]"`, {
+      timeout: 15000,
+    })
     const results = JSON.parse(result.toString())
     return NextResponse.json({ results, count: results.length, query })
   } catch (err: any) {

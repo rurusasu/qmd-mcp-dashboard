@@ -49,14 +49,15 @@ Docker containerized application that serves as a **dashboard and MCP gateway** 
 
 | Workflow | Trigger | What it does |
 |---|---|---|
-| **CI** | PR to `main` | Lint (hadolint) → Test (Vitest · tsc · build) |
+| **CI** | PR to `main` | Lint (hadolint · ESLint · Prettier) → Test (Vitest · tsc · build) |
 | **Docker** | push to `main` / `v*` tag / weekly | Security → Build + Smoke test (main)。Security → Build → Image scan → Push (tag)。Security のみ (weekly) |
 
 ```
 PR to main
-  └─► CI ─────► Lint ─► Test (parallel) ─► ✅
-                hadolint  ├ Vitest + tsc
-                          └ Next.js build
+  └─► CI ─────► Lint (parallel) ─► Test (parallel) ─► ✅
+                ├ hadolint          ├ Vitest + tsc
+                ├ ESLint            └ Next.js build
+                └ Prettier
 
 push to main (merge)
   └─► Docker ─► Security (parallel) ─► Build → Smoke Test ─► ✅
@@ -224,6 +225,11 @@ npx tsc --noEmit     # Type check
 ### Linting
 
 ```bash
+# Dashboard
+cd dashboard
+npm run lint         # ESLint
+npm run format:check # Prettier
+
 # Dockerfile
 hadolint Dockerfile
 ```
