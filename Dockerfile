@@ -49,6 +49,8 @@ FROM node:22-bookworm-slim
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
+ARG SUPERGATEWAY_VERSION=3.4.3
+
 RUN \
   --mount=type=cache,target=/var/lib/apt,sharing=locked \
   --mount=type=cache,target=/var/cache/apt,sharing=locked \
@@ -58,11 +60,13 @@ RUN \
 COPY --from=qmd-builder /usr/local/share/pnpm /usr/local/share/pnpm
 COPY --from=qmd-builder /usr/local/bin/qmd /usr/local/bin/qmd
 COPY --from=qmd-builder /opt/qmd /opt/qmd
-COPY --from=qmd-builder /usr/local/lib/node_modules/supergateway /usr/local/lib/node_modules/supergateway
-COPY --from=qmd-builder /usr/local/bin/supergateway /usr/local/bin/supergateway
 
 ENV PNPM_HOME="/usr/local/share/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
+
+# Install supergateway in runtime stage (needs all deps)
+RUN --mount=type=cache,target=/root/.npm \
+    npm install -g supergateway@${SUPERGATEWAY_VERSION}
 
 # Dashboard
 COPY --from=dashboard-builder /dashboard/.next/standalone /app/dashboard
