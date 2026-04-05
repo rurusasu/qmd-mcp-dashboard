@@ -3,10 +3,140 @@ name: Build and Push Docker Image
 on:
   push:
     branches: [main]
-    tags: ['*']
+    tags: ['v*']
+  schedule:
+    - cron: '0 9 * * 1' # Weekly security scan (Monday 09:00 UTC)
 
 jobs:
-  build-push:
+  # ── Security ──────────────────────────────────────
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trivy config scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: config
+          scan-ref: .
+          format: sarif
+          output: trivy-config.sarif
+        continue-on-error: true
+
+      - name: Upload Trivy config results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-config.sarif
+          category: trivy-config
+        continue-on-error: true
+
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-fs.sarif
+        continue-on-error: true
+
+      - name: Upload Trivy fs results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-fs.sarif
+          category: trivy-fs
+        continue-on-error: true
+
+      - name: npm audit
+        working-directory: dashboard
+        run: npm audit --audit-level=high || true
+
+  # ── Build ─────────────────────────────────────────
+  build:
+    name: Build Docker Image
+    needs: [security-scan]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: rurusasu/qmd-mcp-dashboard
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=ref,event=tag
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test
+        run: |
+          docker run --rm -d --name smoke-test \
+            rurusasu/qmd-mcp-dashboard:latest || true
+          sleep 5
+          docker logs smoke-test 2>&1 || true
+          docker stop smoke-test || true
+
+      - name: Save image for push
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: docker save rurusasu/qmd-mcp-dashboard:latest -o /tmp/image.tar
+
+      - name: Upload image artifact
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp/image.tar
+          retention-days: 1
+
+  # ── Image Scan (tags only) ────────────────────────
+  image-scan:
+    name: Image Vulnerability Scan
+    needs: [build]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp
+
+      - name: Load image
+        run: docker load -i /tmp/image.tar
+
+      - name: Trivy image scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: rurusasu/qmd-mcp-dashboard:latest
+          severity: CRITICAL,HIGH
+          format: table
+
+  # ── Push (tags only) ──────────────────────────────
+  push:
+    name: Push to Docker Hub
+    needs: [build, image-scan]
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -26,8 +156,9 @@ jobs:
         with:
           images: rurusasu/qmd-mcp-dashboard
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=ref,event=tag
+            type=raw,value=latest
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
 
       - uses: docker/build-push-action@v6
         with:
