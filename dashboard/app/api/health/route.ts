@@ -16,18 +16,30 @@ export async function GET() {
   const dbPath = `${qmdData}/index.sqlite`
   const dbExists = fs.existsSync(dbPath)
 
-  let fileCount = 0
+  // Get QMD stats
+  let stats: Record<string, unknown> = {}
   try {
     const result = execSync('qmd stats --json 2>/dev/null || echo "{}"', { timeout: 5000 })
-    const stats = JSON.parse(result.toString())
-    fileCount = stats.documentCount || 0
+    stats = JSON.parse(result.toString())
+  } catch { /* ignore */ }
+
+  // Get DB file size
+  let dbSizeBytes = 0
+  try {
+    if (dbExists) {
+      const stat = fs.statSync(dbPath)
+      dbSizeBytes = stat.size
+    }
   } catch { /* ignore */ }
 
   return NextResponse.json({
     status: dbExists ? 'healthy' : 'degraded',
     database: dbExists ? 'ok' : 'missing',
-    indexedFiles: fileCount,
+    indexedFiles: stats.documentCount ?? stats.document_count ?? 0,
+    chunkCount: stats.chunkCount ?? stats.chunk_count ?? 0,
+    collectionCount: stats.collectionCount ?? stats.collection_count ?? 0,
     diskUsage,
+    dbSizeBytes,
     timestamp: new Date().toISOString(),
   })
 }
