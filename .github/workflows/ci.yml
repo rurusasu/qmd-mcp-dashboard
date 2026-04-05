@@ -10,13 +10,12 @@ jobs:
     name: Dockerfile Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: hadolint/hadolint-action@v3.2.0
         with:
           dockerfile: Dockerfile
-          failure-threshold: error
 
-  # ── Test (runs after lint passes) ─────────────────
+  # ── Test (runs after all lint jobs pass) ──────────
   dashboard-tests:
     name: Dashboard (Vitest)
     needs: [hadolint]
@@ -25,8 +24,8 @@ jobs:
       run:
         working-directory: dashboard
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -36,7 +35,6 @@ jobs:
       - name: TypeScript type check
         run: npx tsc --noEmit
 
-  # ── Build ─────────────────────────────────────────
   build-check:
     name: Dashboard Build
     needs: [hadolint]
@@ -45,8 +43,8 @@ jobs:
       run:
         working-directory: dashboard
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
