@@ -8,8 +8,8 @@ beforeEach(() => {
     vi.fn(() =>
       Promise.resolve({
         json: () => Promise.resolve({ status: 'healthy', documents: [], results: [] }),
-      })
-    )
+      }),
+    ),
   )
 })
 

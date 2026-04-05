@@ -45,7 +45,9 @@ export default function DashboardPage() {
       try {
         const res = await fetch('/dashboard/api/health')
         setHealth(await res.json())
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
     fetchHealth()
     const interval = setInterval(fetchHealth, 30000)
@@ -54,8 +56,8 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetch('/dashboard/api/documents')
-      .then(r => r.json())
-      .then(d => setDocuments(Array.isArray(d.documents) ? d.documents : []))
+      .then((r) => r.json())
+      .then((d) => setDocuments(Array.isArray(d.documents) ? d.documents : []))
       .catch(() => {})
   }, [])
 
@@ -66,7 +68,9 @@ export default function DashboardPage() {
       const res = await fetch(`/dashboard/api/search?q=${encodeURIComponent(searchQuery)}`)
       const data = await res.json()
       setSearchResults(Array.isArray(data.results) ? data.results : [])
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     setIsSearching(false)
   }
 
@@ -97,7 +101,9 @@ export default function DashboardPage() {
         </div>
         <div className="p-4 rounded-lg border border-gray-700 bg-gray-800/50">
           <div className="text-xs text-gray-400 uppercase tracking-wide">DB Size</div>
-          <div className="text-lg font-semibold mt-1">{health ? formatBytes(health.dbSizeBytes) : '...'}</div>
+          <div className="text-lg font-semibold mt-1">
+            {health ? formatBytes(health.dbSizeBytes) : '...'}
+          </div>
         </div>
         <div className="p-4 rounded-lg border border-gray-700 bg-gray-800/50">
           <div className="text-xs text-gray-400 uppercase tracking-wide">Disk</div>
@@ -160,7 +166,9 @@ export default function DashboardPage() {
               <tbody>
                 {documents.map((doc, i) => (
                   <tr key={i} className="border-b border-gray-700/50 hover:bg-gray-700/30">
-                    <td className="p-3 text-gray-200 font-mono text-xs">{doc.file || doc.name || JSON.stringify(doc)}</td>
+                    <td className="p-3 text-gray-200 font-mono text-xs">
+                      {doc.file || doc.name || JSON.stringify(doc)}
+                    </td>
                     <td className="p-3 text-gray-400 text-right">{doc.chunks ?? '?'}</td>
                   </tr>
                 ))}
@@ -172,7 +180,8 @@ export default function DashboardPage() {
 
       {/* Last updated */}
       <div className="mt-8 text-xs text-gray-600 text-center">
-        Last updated: {health?.timestamp ? new Date(health.timestamp).toLocaleString('ja-JP') : '...'}
+        Last updated:{' '}
+        {health?.timestamp ? new Date(health.timestamp).toLocaleString('ja-JP') : '...'}
       </div>
     </main>
   )

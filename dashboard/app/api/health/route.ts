@@ -11,7 +11,9 @@ export async function GET() {
   try {
     const stat = execSync(`du -sh ${qmdData} 2>/dev/null || echo "0\\t-"`)
     diskUsage = stat.toString().split('\t')[0].trim()
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 
   const dbPath = `${qmdData}/index.sqlite`
   const dbExists = fs.existsSync(dbPath)
@@ -21,7 +23,9 @@ export async function GET() {
   try {
     const result = execSync('qmd stats --json 2>/dev/null || echo "{}"', { timeout: 5000 })
     stats = JSON.parse(result.toString())
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 
   // Get DB file size
   let dbSizeBytes = 0
@@ -30,7 +34,9 @@ export async function GET() {
       const stat = fs.statSync(dbPath)
       dbSizeBytes = stat.size
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 
   return NextResponse.json({
     status: dbExists ? 'healthy' : 'degraded',
